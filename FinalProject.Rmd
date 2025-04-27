@@ -1,0 +1,149 @@
+---
+title: "FinalProject"
+author: "Wendy Mendoza Gutierrez"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Libraries and Data
+```{r}
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(readxl)
+Sleep<- read_excel("~/Downloads/Sleep_health_and_lifestyle_dataset .xlsx")
+```
+
+#Research question 1
+##One-way ANOVA
+```{r}
+education_social <- c("Teacher", "Lawyer")
+business_finance <- c("Accountant", "Sales Representative", "Salesperson", "Manager")
+stem <- c("Software Engineer", "Engineer", "Scientist")
+healthcare <- c("Doctor", "Nurse")
+OccupationSleep <- Sleep %>% 
+  mutate(Occupation_Category = ifelse(Occupation %in% education_social, "Education/Social Science", 
+                               ifelse(Occupation %in% business_finance, "Business/Finance", 
+                               ifelse(Occupation %in% stem, "STEM", 
+                               ifelse(Occupation %in% healthcare, "Healthcare", "Other")))))
+
+
+
+ggplot(data=OccupationSleep, aes(x=Occupation_Category, y=`Sleep Duration`, fill=Occupation_Category)) + 
+       labs(x="Occupation Category", y="Sleep Duration (hours)", fill="Occupation Category") + 
+       geom_bar(stat="summary", fun=mean, color="black", width=0.5) + 
+       geom_errorbar(stat="summary", fun.data=mean_se, width=0.2) + 
+       theme(axis.text.x=element_text(angle=45, hjust=1)) + 
+       scale_y_continuous(limits=c(0, max(OccupationSleep$`Sleep Duration`) * 1.2)) + 
+       scale_fill_brewer(palette="Pastel1")
+
+```
+
+# ANOVA test for Research Question 1
+```{r}
+model1 <- aov(`Sleep Duration` ~ Occupation_Category, data = OccupationSleep)
+summary(model1)
+TukeyHSD(model1)
+```
+
+
+#Research Question 2 
+## Two-way ANOVA
+```{r}
+PhysicalActivity <- Sleep %>% 
+  mutate(newPhy = ifelse(`Physical Activity Level`>50, "high", "low"))
+print(PhysicalActivity)
+
+phyCounts <- PhysicalActivity %>% 
+  count(newPhy)
+print(phyCounts)
+
+interaction.plot(PhysicalActivity$Gender,PhysicalActivity$newPhy,PhysicalActivity$`Sleep Duration`,
+                 fun=mean,xlab="Gender",ylab="Sleep Duration (hours)", 
+                 trace.label="Physical Activity",col=c("plum2","slategray3"),lwd=2,pch=19) 
+```
+
+#Two-way ANOVA test for Research Question 2
+```{r}
+model2 <- aov(`Sleep Duration`~Gender+newPhy+Gender*newPhy, data=PhysicalActivity)
+summary(model2)
+```
+
+# Significant interaction
+```{r}
+FemaleFilter <- PhysicalActivity %>% 
+  filter(Gender == "Female")
+modelFemale <- aov(`Sleep Duration`~newPhy, data=FemaleFilter)
+summary(modelFemale)
+
+MaleFilter <- PhysicalActivity %>% 
+  filter(Gender == "Male")
+modelMale <- aov(`Sleep Duration`~newPhy, data=MaleFilter)
+summary(modelMale)
+```
+
+# Summary Statistics
+```{r}
+## Occupation counts
+Occupation_counts <- OccupationSleep %>% 
+  count(Occupation_Category)
+print(Occupation_counts)
+
+## Statistics for Male
+statsSleepMale <- Sleep %>%
+  filter(Gender == "Male") %>%
+  summarise(
+    meanMale = mean(`Sleep Duration`, na.rm = TRUE),
+    sdMale = sd(`Sleep Duration`, na.rm = TRUE),
+    minMale = min(`Sleep Duration`, na.rm = TRUE),
+    maxMale = max(`Sleep Duration`, na.rm = TRUE)
+  )
+print(statsSleepMale)
+
+## Statistic for Female
+statsSleepFemale <- Sleep %>%
+  filter(Gender == "Female") %>%
+  summarise(
+    meanFemale = mean(`Sleep Duration`, na.rm = TRUE),
+    sdfemale = sd(`Sleep Duration`, na.rm = TRUE),
+    minfemale = min(`Sleep Duration`, na.rm = TRUE),
+    maxfemale = max(`Sleep Duration`, na.rm = TRUE)
+  )
+print(statsSleepFemale)
+
+## Statistic for Activity Levels
+statsActivityLevel <- PhysicalActivity %>%
+  group_by(newPhy) %>%
+  summarise(
+    meanSleep = mean(`Sleep Duration`, na.rm = TRUE),
+    sdSleep = sd(`Sleep Duration`, na.rm = TRUE),
+    minSleep = min(`Sleep Duration`, na.rm = TRUE),
+    maxSleep = max(`Sleep Duration`, na.rm = TRUE)
+  )
+print(statsActivityLevel)
+
+## Statistic for Occupations
+statsOccupation <- OccupationSleep %>%
+  group_by(Occupation_Category) %>%
+  summarise(
+    meanSleep = mean(`Sleep Duration`, na.rm = TRUE),
+    sdSleep = sd(`Sleep Duration`, na.rm = TRUE),
+    minSleep = min(`Sleep Duration`, na.rm = TRUE),
+    maxSleep = max(`Sleep Duration`, na.rm = TRUE)
+  )
+print(statsOccupation)
+
+## Statistic for Sleep Duration
+overallStatsSleep <- Sleep %>%
+  summarise(
+    meanSleep = mean(`Sleep Duration`, na.rm = TRUE),
+    sdSleep = sd(`Sleep Duration`, na.rm = TRUE),
+    minSleep = min(`Sleep Duration`, na.rm = TRUE),
+    maxSleep = max(`Sleep Duration`, na.rm = TRUE)
+  )
+print(overallStatsSleep)
+```
